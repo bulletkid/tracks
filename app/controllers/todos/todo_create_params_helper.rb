@@ -110,7 +110,7 @@ module Todos
     end
 
     def add_errors(model)
-      @errors.each {|e| model.errors[ e[:attribute] ] = e[:message] }
+      @errors.each {|e| model.errors.add(e[:attribute], e[:message]) }
     end
 
     private
@@ -146,9 +146,11 @@ module Todos
     end
 
     def set_id_by_name(group_type, set, name)
-      group = set.where(:name => name).first_or_create
+      group = set.where(:name => name).first_or_initialize
+      group_is_new = group.new_record?
+      group.save if group_is_new
       @attributes["#{group_type}_id"] = group.id
-      return group.new_record_before_save?
+      group_is_new
     end
 
     def set_id_by_id_string(group_type, set, id)

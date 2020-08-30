@@ -7,19 +7,21 @@ class ApplicationController < ActionController::Base
   protect_from_forgery with: :exception
 
   include LoginSystem
+  include Common
   helper_method :current_user, :prefs, :format_date
 
   layout proc{ |controller| controller.mobile? ? "mobile" : "application" }
   # exempt_from_layout /\.js\.erb$/
 
-  before_filter :set_session_expiration
-  before_filter :set_time_zone
-  before_filter :set_zindex_counter
-  before_filter :set_locale
-  append_before_filter :set_group_view_by
-  prepend_before_filter :login_required
-  prepend_before_filter :enable_mobile_content_negotiation
-  
+  before_action :set_session_expiration
+  before_action :set_time_zone
+  before_action :set_zindex_counter
+  before_action :set_locale
+  before_action :set_theme
+  append_before_action :set_group_view_by
+  prepend_before_action :login_required
+  prepend_before_action :enable_mobile_content_negotiation
+
   def set_locale
     locale = params[:locale] # specifying a locale in the request takes precedence
     locale = locale || prefs.locale unless current_user.nil? # otherwise, the locale of the currently logged in user takes over
@@ -52,7 +54,7 @@ class ApplicationController < ActionController::Base
   end
 
   def render_failure message, status = 404
-    render :text => message, :status => status
+    render :body => message, :status => status
   end
 
   # Returns a count of next actions in the given context or project The result
@@ -75,8 +77,10 @@ class ApplicationController < ActionController::Base
     if todos_parent.nil?
       count = 0
     elsif (todos_parent.is_a?(Project) && todos_parent.hidden?)
+      init_hidden_todo_counts(['project']) if !@project_hidden_todo_counts
       count = @project_hidden_todo_counts[todos_parent.id]
     elsif (todos_parent.is_a?(Context) && todos_parent.hidden?)
+      init_hidden_todo_counts(['context']) if !@context_hidden_todo_counts
       count = @context_hidden_todo_counts[todos_parent.id]
     else
       count = eval "@#{todos_parent.class.to_s.downcase}_not_done_counts[#{todos_parent.id}]"
@@ -119,10 +123,10 @@ class ApplicationController < ActionController::Base
   # versions. Unfortunately, I ran into a lot of trouble simply registering a
   # new mime type 'text/html' with format :m because :html already is linked to
   # that mime type and the new registration was forcing all html requests to be
-  # rendered in the mobile view. The before_filter and after_filter hackery
+  # rendered in the mobile view. The before_action and after_action hackery
   # below accomplishs that implementation goal by using a 'fake' mime type
   # during the processing and then setting it to 'text/html' in an
-  # 'after_filter' -LKM 2007-04-01
+  # 'after_action' -LKM 2007-04-01
   def mobile?
     return params[:format] == 'm'
   end
@@ -147,7 +151,14 @@ class ApplicationController < ActionController::Base
 
   def admin_login_required
     unless User.find(session['user_id']).is_admin
-      render :text => t('errors.user_unauthorized'), :status => 401
+      render :body => t('errors.user_unauthorized'), :status => 401
+      return false
+    end
+  end
+
+  def admin_or_self_login_required
+    unless User.find(session['user_id']).is_admin || session['user_id'] == params[:id].to_i
+      render :body => t('errors.user_unauthorized'), :status => 401
       return false
     end
   end

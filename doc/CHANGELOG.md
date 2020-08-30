@@ -1,12 +1,68 @@
-## Version 2.4
+## Version 2.5.0
+
+See doc/upgrading.md for the upgrade documentation!
+
+### New features
+* Updated documentation both in the doc directory and online.
+* .skip-docker file has been replaced with .use-docker, see upgrading.md for
+  details.
+* Added email, last login, creation and update time to the user model.
+* Added terms of service and email fields to the signup form. The TOS link is
+  defined in site.yml, see config/site.yml.tmpl.
+* New, lighter default color scheme. The black color scheme is also available
+  for selection in the user preferences. Default theme can be set in site.yml.
+* Added a help page to the ? menu linking to online help assets.
+* Allow the user to remove their own account.
+
+### Removed features
+* Ruby versions below 2.5 are no longer supported.
+* Old Internet Explorer versions (7 and 8) are no longer supported.
+
+### Bug fixes
+* Fixed the signup form to use login form styles.
+* Lots of dependencies have been upgraded, including Rails major upgrade.
+* Fixed some minor UI bugs.
+
+## Version 2.4.2
+
+### New features
+* The new todo UI form has been updated.
+
+### Bug fixes
+* Needless sanitization of tags has been removed.
+* Security vulnerabilities have been fixed.
+
+## Version 2.4.1
+
+### Bug fixes
+* Fixed a bug in the tag migration that prevented the migration from completing
+  at least in some MySQL environments. The bug only affected upgrading an existing Tracks
+  installation.
+
+## Version 2.4.0
+
+### New features
 * Removed support for deprecated password-hashing algorithm. This
   eliminates config.salt. Note the addition of a pre-upgrade step to
   check for obsolete passwords.
-* Rails 4.2
+* All tags now belong to a user. Existing tags are migrated to users based on
+  the taggings and duplicated as necessary. If there's only one user, all unused tags are
+  assigned to them, otherwise unused tags are removed.
+* All REST APIs now also accept user token as password.
+* The stats view now uses Charts.js instead of the Flash-based chart library.
+* A Docker environment is used unless the .skip-docker file exists.
+* Rails 5.2
 * Thin replaces WEBrick as the included web server
-* Tracks is tested on Ruby 1.9.3, 2.0.0, 2.1, and 2.2.
+* Tracks is tested on Ruby 2.4 and 2.5
 * The MessageGateway will save the received email as an attachement to the todo
 * Add a configuration option for serving static assets from Rails
+
+### Removed features
+* Ruby versions below 2.4 are no longer supported.
+
+### Bug fixes
+* Multiple fixes to REST APIs.
+* Several UI bugs fixed.
 
 ## Version 2.3.0
 

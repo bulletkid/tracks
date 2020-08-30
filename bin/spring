@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-if ENV["RAILS_ENV"] != "production"
+if File.exist?("#{__dir__}/../.use-docker")
   exec("#{__dir__}/../script/docker-environment", $PROGRAM_NAME, *ARGV) unless File.exist?("/etc/app-env")
 end
 

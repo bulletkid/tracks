@@ -2,8 +2,8 @@ class RecurringTodosController < ApplicationController
 
   helper :todos, :recurring_todos
 
-  append_before_filter :init, :only => [:index, :new, :edit, :create]
-  append_before_filter :get_recurring_todo_from_param, :only => [:destroy, :toggle_check, :toggle_star, :edit, :update]
+  append_before_action :init, :only => [:index, :new, :edit, :create]
+  append_before_action :get_recurring_todo_from_param, :only => [:destroy, :toggle_check, :toggle_star, :edit, :update]
 
   def index
     @page_title = t('todos.recurring_actions_title')
@@ -12,8 +12,8 @@ class RecurringTodosController < ApplicationController
     @recurring_todos = current_user.recurring_todos.active.includes(:tags, :taggings)
     @completed_recurring_todos = current_user.recurring_todos.completed.limit(10).includes(:tags, :taggings)
 
-    @no_recurring_todos = @recurring_todos.count == 0
-    @no_completed_recurring_todos = @completed_recurring_todos.count == 0
+    @no_recurring_todos = @recurring_todos.exists?
+    @no_completed_recurring_todos = @completed_recurring_todos.exists?
     @count = @recurring_todos.count
 
     @new_recurring_todo = RecurringTodo.new

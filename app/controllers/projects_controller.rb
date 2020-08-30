@@ -1,11 +1,11 @@
 class ProjectsController < ApplicationController
 
   helper :application, :todos, :notes
-  before_filter :set_source_view
-  before_filter :set_project_from_params, :only => [:update, :destroy, :show, :edit, :set_reviewed]
-  before_filter :default_context_filter, :only => [:create, :update]
-  skip_before_filter :login_required, :only => [:index]
-  prepend_before_filter :login_or_feed_token_required, :only => [:index]
+  before_action :set_source_view
+  before_action :set_project_from_params, :only => [:update, :destroy, :show, :edit, :set_reviewed]
+  before_action :default_context_filter, :only => [:create, :update]
+  skip_before_action :login_required, :only => [:index, :show]
+  prepend_before_action :login_or_feed_token_required, :only => [:index, :show]
 
   def index
     @source_view = params['_source_view'] || 'project_list'
@@ -37,18 +37,18 @@ class ProjectsController < ApplicationController
           @down_count = @active_projects.size + @hidden_projects.size + @completed_projects.size
           cookies[:mobile_url]= {:value => request.fullpath, :secure => SITE_CONFIG['secure_cookies']}
         end
-        format.xml   { render :xml => @projects.to_xml( :except => :user_id )  }
+        format.xml { render :xml => @projects.to_xml(:root => :projects, :except => :user_id) }
         format.any(:rss, :atom) do
           @feed_title = I18n.t('models.project.feed_title')
           @feed_description = I18n.t('models.project.feed_description', :username => current_user.display_name)
         end
         format.text do
-          # somehow passing Mime::TEXT using content_type to render does not work
-          headers['Content-Type']=Mime::TEXT.to_s
+          # somehow passing Mime[:text] using content_type to render does not work
+          headers['Content-Type']=Mime[:text].to_s
         end
         format.autocomplete do
           projects = current_user.projects.active + current_user.projects.hidden
-          render :text => for_autocomplete(projects, params[:term])
+          render :body => for_autocomplete(projects, params[:term])
         end
       end
     end
@@ -114,9 +114,9 @@ class ProjectsController < ApplicationController
     @projects = current_user.projects.active
     respond_to do |format|
       format.text  {
-        # somehow passing Mime::TEXT using content_type to render does not work
-        headers['Content-Type']=Mime::TEXT.to_s
-        render :action => 'index_text_projects_and_actions', :layout => false, :content_type => Mime::TEXT
+        # somehow passing Mime[:text] using content_type to render does not work
+        headers['Content-Type']=Mime[:text].to_s
+        render :action => 'index_text_projects_and_actions', :layout => false, :content_type => Mime[:text]
       }
     end
   end
@@ -158,7 +158,7 @@ class ProjectsController < ApplicationController
         @mobile_from_project = @project.id
       end
       format.xml   do
-        render :xml => @project.to_xml(:except => :user_id) { |xml|
+        render :xml => @project.to_xml(:root => :project, :except => :user_id) { |xml|
           xml.not_done { @not_done_todos.each { |child| child.to_xml(:builder => xml, :skip_instruct => true) } }
           xml.deferred { @deferred_todos.each { |child| child.to_xml(:builder => xml, :skip_instruct => true) } }
           xml.pending { @pending_todos.each { |child| child.to_xml(:builder => xml, :skip_instruct => true) } }
@@ -237,7 +237,7 @@ class ProjectsController < ApplicationController
         @projects = current_user.projects
         template = 'projects/update_project_name'
       else
-        render :text => success_text || 'Success'
+        render :body => success_text || 'Success'
         return
       end
     else
@@ -252,7 +252,7 @@ class ProjectsController < ApplicationController
         if @saved
           render :xml => @project.to_xml( :except => :user_id )
         else
-          render :text => "Error on update: #{@project.errors.full_messages.inject("") {|v, e| v + e + " " }}", :status => 409
+          render :body => "Error on update: #{@project.errors.full_messages.inject("") {|v, e| v + e + " " }}", :status => 409
         end
       }
     end
@@ -274,14 +274,14 @@ class ProjectsController < ApplicationController
         @down_count = current_user.projects.size
         update_state_counts
       }
-      format.xml { render :text => "Deleted project #{@project.name}" }
+      format.xml { render :body => "Deleted project #{@project.name}" }
     end
   end
 
   def order
     project_ids = params["container_project"]
     @projects = current_user.projects.update_positions( project_ids )
-    render :nothing => true
+    head :ok
   rescue
     notify :error, $!
     redirect_to :action => 'index'

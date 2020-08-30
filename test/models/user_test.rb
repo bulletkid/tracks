@@ -89,6 +89,19 @@ class UserTest < ActiveSupport::TestCase
     end
   end
 
+  def test_validate_correct_email
+    assert_difference 'User.count' do
+      create_user :email=> 'testi@example.org'
+    end
+  end
+
+  def test_validate_email_format
+    assert_no_difference 'User.count' do
+      u = create_user :email=> 'test'
+      assert_equal ["is not valid"], u.errors[:email]
+    end
+  end
+
   def test_display_name_with_first_and_last_name_set
     @other_user.first_name = "Jane"
     @other_user.last_name = "Doe"
@@ -160,9 +173,9 @@ class UserTest < ActiveSupport::TestCase
   end
 
   def test_generate_token_updates_token
-    assert_value_changed @admin_user, :token do
-      @admin_user.send :generate_token
-    end
+    old_token = @admin_user.token
+    @admin_user.generate_token
+    refute_equal old_token, @admin_user.token
   end
 
   def test_find_admin
@@ -261,12 +274,12 @@ class UserTest < ActiveSupport::TestCase
   end
 
   def test_should_reset_password
-    users(:other_user).update_attributes(:password => 'new password', :password_confirmation => 'new password')
+    users(:other_user).update(:password => 'new password', :password_confirmation => 'new password')
     assert_equal users(:other_user), User.authenticate('jane', 'new password')
   end
 
   def test_should_not_rehash_password
-    users(:other_user).update_attributes(:login => 'jane2')
+    users(:other_user).update(:login => 'jane2')
     assert_equal users(:other_user), User.authenticate('jane2', 'sesame')
   end
 

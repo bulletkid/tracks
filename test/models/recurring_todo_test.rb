@@ -16,6 +16,9 @@ class RecurringTodoTest < ActiveSupport::TestCase
     @in_three_days = @today + 3.days
     @in_four_days = @in_three_days + 1.day    # need a day after start_from
 
+    @this_year = @today.year
+    @next_year = @this_year + 1
+
     @friday = Time.zone.local(2008,6,6,1,2,3)
     @saturday = Time.zone.local(2008,6,7,1,2,3)
     @sunday = Time.zone.local(2008,6,8,1,2,3)  # june 8, 2008 was a sunday
@@ -30,8 +33,8 @@ class RecurringTodoTest < ActiveSupport::TestCase
 
     @every_day.target='show_from_date'
     # when recurrence is targeted on show_from, due date should remain nil
-    assert_equal nil, @every_day.get_due_date(nil)
-    assert_equal nil, @every_day.get_due_date(@today-3.days)
+    assert_nil @every_day.get_due_date(nil)
+    assert_nil @every_day.get_due_date(@today-3.days)
 
     # check show from get the next day
     assert_equal_dmy @today, @every_day.get_show_from_date(@today-1.days)
@@ -40,7 +43,7 @@ class RecurringTodoTest < ActiveSupport::TestCase
     @every_day.target='due_date'
     # when target on due_date, show_from is relative to due date unless show_always is true
     @every_day.show_always = true
-    assert_equal nil, @every_day.get_show_from_date(@today-1.days)
+    assert_nil @every_day.get_show_from_date(@today-1.days)
 
     @every_day.show_always = false
     @every_day.show_from_delta=10
@@ -52,7 +55,7 @@ class RecurringTodoTest < ActiveSupport::TestCase
 
     # when show_from is nil, show always (happend in tests)
     @every_day.show_from_delta=nil
-    assert_equal nil, @every_day.get_show_from_date(@today+9.days)
+    assert_nil @every_day.get_show_from_date(@today+9.days)
 
     # TODO: show_from has no use case for daily pattern. Need to test on
     # weekly/monthly/yearly
@@ -102,6 +105,9 @@ class RecurringTodoTest < ActiveSupport::TestCase
   end
 
   def test_start_from_in_future
+
+    ## Test: every day
+
     # every_day should return start_day if it is in the future
     @every_day.start_from = @in_three_days
     due_date = @every_day.get_due_date(nil)
@@ -114,15 +120,40 @@ class RecurringTodoTest < ActiveSupport::TestCase
     due_date = @every_day.get_due_date(@in_four_days)
     assert_equal (@in_four_days+1.day).at_midnight, due_date
 
+    
+    ## Test: Every weekday
+
+    # 1 Jan 2020 is a Wednesday
     @weekly_every_day.start_from = Time.zone.local(2020,1,1)
     assert_equal Time.zone.local(2020,1,1), @weekly_every_day.get_due_date(nil)
     assert_equal Time.zone.local(2020,1,1), @weekly_every_day.get_due_date(Time.zone.local(2019,10,1))
     assert_equal Time.zone.local(2020,1,10), @weekly_every_day.get_due_date(Time.zone.local(2020,1,9))
 
-    @monthly_every_last_friday.start_from = Time.zone.local(2020,1,1)
-    assert_equal Time.zone.local(2020,1,31), @monthly_every_last_friday.get_due_date(nil) # last friday of jan
-    assert_equal Time.zone.local(2020,1,31), @monthly_every_last_friday.get_due_date(Time.zone.local(2019,12,1)) # last friday of jan
-    assert_equal Time.zone.local(2020,2,28), @monthly_every_last_friday.get_due_date(Time.zone.local(2020,2,1)) # last friday of feb
+
+    ## Test: every month
+
+    @monthly_every_last_friday.start_from = Time.zone.local(@next_year,3,1)
+
+    last_friday_in_march = Time.zone.local(@next_year, 3, 31)
+    last_friday_in_march -= 1 until last_friday_in_march.wday == 5
+    last_friday_in_march = last_friday_in_march.at_midnight
+
+    last_friday_in_april = Time.zone.local(@next_year, 4, 30)
+    last_friday_in_april -= 1 until last_friday_in_april.wday == 5
+    last_friday_in_april = last_friday_in_april.at_midnight
+
+    # Starting from the start date: next due date will be the last Friday in March
+    assert_equal last_friday_in_march, @monthly_every_last_friday.get_due_date(nil)
+
+    # Starting from 31 December this year: next due date is still the last Friday
+    # of March, since it is calculated from the start date
+    assert_equal last_friday_in_march, @monthly_every_last_friday.get_due_date(Time.zone.local(@this_year,12,1))
+
+    # Starting from 1 April next year: next due date is the last Friday of April
+    assert_equal last_friday_in_april, @monthly_every_last_friday.get_due_date(Time.zone.local(@next_year,4,1))
+
+
+    ## Test: every year
 
     # start from after june 8th 2008
     @yearly.start_from = Time.zone.local(2020,6,12)

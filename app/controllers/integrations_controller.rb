@@ -1,8 +1,8 @@
 class IntegrationsController < ApplicationController
   require 'mail'
 
-  skip_before_filter :login_required, :only => [:cloudmailin, :search_plugin]
-  skip_before_filter :verify_authenticity_token, only: [:cloudmailin]
+  skip_before_action :login_required, :only => [:cloudmailin, :search_plugin]
+  skip_before_action :verify_authenticity_token, only: [:cloudmailin]
 
   def index
     @page_title = 'TRACKS::Integrations'
@@ -12,6 +12,10 @@ class IntegrationsController < ApplicationController
     @page_title = 'TRACKS::REST API Documentation'
   end
 
+  def help
+    @page_title = 'TRACKS::Help'
+  end
+
   def search_plugin
     @icon_data = [File.open(File.join(Rails.root, 'app', 'assets', 'images', 'done.png')).read].
       pack('m').gsub(/\n/, '')
@@ -19,14 +23,14 @@ class IntegrationsController < ApplicationController
 
   def cloudmailin
     if !verify_cloudmailin_signature
-      render :text => "Message signature verification failed.", :status => 403
+      render :body => "Message signature verification failed.", :status => 403
       return false
     end
 
     if process_message(params[:message])
-      render :text => 'success', :status => 200
+      render :body => 'success', :status => 200
     else
-      render :text => "No user found or other error", :status => 404
+      render :body => "No user found or other error", :status => 404
     end
   end
 

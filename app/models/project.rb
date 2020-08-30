@@ -1,5 +1,5 @@
-class Project < ActiveRecord::Base
-  has_many :todos, -> {order("todos.due IS NULL, todos.due ASC, todos.created_at ASC")}, dependent: :delete_all
+class Project < ApplicationRecord
+  has_many :todos, -> {order(Arel.sql("todos.due IS NULL, todos.due ASC, todos.created_at ASC"))}, dependent: :delete_all
   has_many :notes, -> {order "created_at DESC"}, dependent: :delete_all
   has_many :recurring_todos
 
@@ -18,7 +18,7 @@ class Project < ActiveRecord::Base
 
   validates_presence_of :name
   validates_length_of :name, :maximum => 255
-  validates_uniqueness_of :name, :scope => "user_id"
+  validates_uniqueness_of :name, :scope => "user_id", :case_sensitive => true
 
   acts_as_list :scope => 'user_id = #{user_id} AND state = \'#{state}\'', :top_of_list => 0
 
@@ -103,7 +103,7 @@ class Project < ActiveRecord::Base
   def stalled?
     # Stalled projects are active projects with no active next actions
     return false if self.completed? || self.hidden?
-    return self.todos.deferred_or_blocked.empty? && self.todos.active.empty?
+    return !self.todos.deferred_or_blocked.exists? && !self.todos.active.exists?
   end
 
   def shortened_name(length=40)
@@ -116,10 +116,6 @@ class Project < ActiveRecord::Base
     else
       self[:name] = nil
     end
-  end
-
-  def new_record_before_save?
-    @new_record_before_save
   end
 
   def age_in_days

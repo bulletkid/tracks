@@ -1,13 +1,13 @@
 require 'digest/sha1'
 require 'bcrypt'
 
-class User < ActiveRecord::Base
+class User < ApplicationRecord
   # Virtual attribute for the unencrypted password
   attr_accessor :password
 
   #for will_paginate plugin
   cattr_accessor :per_page
-  @@per_page = 5
+  @@per_page = 10
 
   has_many(:contexts, -> { order 'position ASC' }, dependent: :delete_all) do
              def find_by_params(params)
@@ -28,7 +28,7 @@ class User < ActiveRecord::Base
               end
               def update_positions(project_ids)
                 project_ids.each_with_index {|id, position|
-                  project = self.detect { |p| p.id == id.to_i }
+                  project = self.find_by(id: id.to_i)
                   raise I18n.t('models.user.error_project_not_associated', :project => id, :user => @user.id) if project.nil?
                   project.update_attribute(:position, position + 1)
                 }
@@ -56,13 +56,13 @@ class User < ActiveRecord::Base
               end
               def alphabetize(scope_conditions = {})
                 projects = where(scope_conditions)
-                projects.to_a.sort!{ |x,y| x.name.downcase <=> y.name.downcase }
+                projects = projects.sort_by { |project| project.name.downcase }
                 self.update_positions(projects.map{ |p| p.id })
                 return projects
               end
               def actionize(scope_conditions = {})
                 todos_in_project = where(scope_conditions).includes(:todos)
-                todos_in_project.to_a.sort_by!{ |x| [-x.todos.active.count, -x.id] }
+                todos_in_project = todos_in_project.sort_by { |x| [-x.todos.active.count, -x.id] }
                 todos_in_project.reject{ |p| p.todos.active.count > 0 }
                 sorted_project_ids = todos_in_project.map {|p| p.id}
 
@@ -94,6 +94,7 @@ class User < ActiveRecord::Base
               end
            end
 
+  has_many :tags, dependent: :delete_all
   has_many :notes, -> { order "created_at DESC" }, dependent: :delete_all
   has_one :preference, dependent: :destroy
   has_many :attachments, through: :todos
@@ -104,8 +105,9 @@ class User < ActiveRecord::Base
   validates_presence_of :password_confirmation, if: :password_required?
   validates_confirmation_of :password
   validates_length_of :login, within: 3..80
-  validates_uniqueness_of :login, on: :create
+  validates_uniqueness_of :login, on: :create, :case_sensitive => false
   validate :validate_auth_type
+  validates :email, :allow_blank => true, format: { with: URI::MailTo::EMAIL_REGEXP }
 
   before_create :crypt_password, :generate_token
   before_update :crypt_password

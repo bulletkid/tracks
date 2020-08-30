@@ -1,10 +1,12 @@
 class LoginController < ApplicationController
+  include Common
 
   layout 'login'
-  skip_before_filter :set_session_expiration
-  skip_before_filter :login_required
-  before_filter :login_optional
-  before_filter :get_current_user
+  skip_before_action :set_session_expiration
+  skip_before_action :login_required
+  before_action :login_optional
+  before_action :get_current_user
+  before_action :set_theme
 
   protect_from_forgery :except => [:check_expiry, :login]
 
@@ -14,6 +16,7 @@ class LoginController < ApplicationController
     case request.method
     when 'POST'
       if @user = User.authenticate(params['user_login'], params['user_password'])
+        @user.update_attribute(:last_login_at, Time.now)
         return handle_post_success
       else
         handle_post_failure
@@ -40,7 +43,6 @@ class LoginController < ApplicationController
       if session
         return unless should_expire_sessions?
         # Get expiry time (allow ten seconds window for the case where we have none)
-        expiry_time = session['expiry_time'] || Time.now + 10
         time_left = expiry_time - Time.now
         @session_expired = ( time_left < (10*60) ) # Session will time out before the next check
       end
@@ -74,6 +76,11 @@ class LoginController < ApplicationController
 
   def should_expire_sessions?
     session['noexpiry'] != "on"
+  end
+
+  def expiry_time
+    return Time.now + 10 unless session['expiry_time']
+    DateTime.strptime(session['expiry_time'], "%FT%T.%L%Z")
   end
 
 end

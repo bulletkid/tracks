@@ -55,7 +55,7 @@ module LoginSystem
     true
   end
 
-  # When called with before_filter :login_from_cookie will check for an :auth_token
+  # When called with before_action :login_from_cookie will check for an :auth_token
   # cookie and log the user back in if appropriate
   def login_from_cookie
     return unless cookies[:auth_token] && !logged_in?
@@ -71,8 +71,15 @@ module LoginSystem
   end
 
   def login_or_feed_token_required
-    if ['rss', 'atom', 'txt', 'ics'].include?(params[:format])
+    if ['rss', 'atom', 'txt', 'ics', 'xml'].include?(params[:format])
+      # Login based on the token GET parameter
       if user = User.where(:token => params[:token]).first
+        set_current_user(user)
+        return true
+      end
+      # Allow also login based on auth data
+      auth = get_basic_auth_data
+      if user = User.where(:login => auth[:user], :token => auth[:pass]).first
         set_current_user(user)
         return true
       end
@@ -82,7 +89,7 @@ module LoginSystem
 
   # login_required filter. add
   #
-  #   before_filter :login_required
+  #   before_action :login_required
   #
   # if the controller should be under any rights management.
   # for finer access control you can overwrite
@@ -206,7 +213,7 @@ module LoginSystem
 
   def basic_auth_denied
       response.headers["WWW-Authenticate"] = "Basic realm=\"'Tracks Login Required'\""
-      render :text => t('login.unsuccessful'), :status => 401
+      render :body => t('login.unsuccessful'), :status => 401
   end
 
 private
@@ -215,6 +222,7 @@ private
   def redirect_to_login
     respond_to do |format|
       format.html { redirect_to login_path }
+      format.js { render js: "redirect_to('" + login_path + "')" }
       format.m { redirect_to login_path(:format => 'm') }
     end
   end
